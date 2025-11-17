@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM階層型自動化サンドボックス</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-gray-800 shadow-md p-3 flex justify-between items-center z-10">
+        <h1 class="text-xl font-bold text-white">LLM階層型自動化サンドボックス</h1>
+        <div id="loading-indicator" class="hidden items-center space-x-2">
+            <div class="loader !w-6 !h-6 !border-2"></div>
+            <span class="text-sm text-blue-300">LLMが世界を判定中...</span>
+        </div>
+        <span id="turn-counter" class="text-lg font-mono text-gray-400">TURN: 0</span>
+    </header>
+
+    <!-- メインレイアウト（3カラム） -->
+    <main class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 p-4 overflow-hidden h-full">
+        
+        <!-- 左カラム: プレイヤーのアクション -->
+        <section class="md:col-span-1 flex flex-col gap-4 overflow-y-auto p-2 bg-gray-800 rounded-lg shadow-inner">
+            <h2 class="text-lg font-semibold text-center border-b border-gray-700 pb-2">プレイヤー・アクション</h2>
+            
+            <!-- 1. クラフトパネル -->
+            <div class="bg-gray-700 p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2 text-blue-300">1. 未知のクラフト</h3>
+                <div class="flex flex-col gap-2">
+                    <!-- 素材選択エリア -->
+                    <div class="bg-gray-800 rounded-md p-2 border border-gray-600 min-h-[40px]">
+                        <span class="text-xs text-gray-400">選択中の素材:</span>
+                        <div id="craft-selection" class="flex flex-wrap gap-1 mt-1">
+                            <span id="craft-selection-placeholder" class="text-gray-500 text-sm">↓のインベントリから選択</span>
+                        </div>
+                    </div>
+                    <!-- インベントリからの素材選択ソース -->
+                    <div id="craft-inventory-source" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-gray-900 rounded-md">
+                        <!-- JSで動的に挿入 -->
+                    </div>
+                    
+                    <input type="text" id="craft-action" class="bg-gray-800 rounded-md p-2 text-sm border border-gray-600" placeholder="アクション (例: 組み合わせる)">
+                    <button id="btn-player-craft" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">実行 (1ターン消費)</button>
+                </div>
+            </div>
+
+            <!-- 2. 探索パネル -->
+            <div class="bg-gray-700 p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2 text-green-300">2. 未知の探索</h3>
+                <div class="flex flex-col gap-2">
+                    <input type="text" id="explore-location" class="bg-gray-800 rounded-md p-2 text-sm border border-gray-600" placeholder="探索場所 (例: 深い森)">
+                    <button id="btn-player-explore" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">実行 (1ターン消費)</button>
+                </div>
+            </div>
+
+            <!-- 3. AIへの指示パネル -->
+            <div class="bg-gray-700 p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2 text-purple-300">3. AIへの指示</h3>
+                <div class="flex flex-col gap-2">
+                    <select id="select-ai-target" class="bg-gray-800 rounded-md p-2 text-sm border border-gray-600">
+                        <option value="">指示対象のAIを選択...</option>
+                    </select>
+                    <select id="select-recipe-target" class="bg-gray-800 rounded-md p-2 text-sm border border-gray-600">
+                        <option value="">実行させるレシピを選択...</option>
+                    </select>
+                    <label class="flex items-center space-x-2 text-sm">
+                        <input type="checkbox" id="check-persistent" class="rounded bg-gray-800 border-gray-600 text-purple-500 focus:ring-purple-600">
+                        <span>永続実行（ループ）</span>
+                    </label>
+                    <button id="btn-player-command" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">指示確定 (1ターン消費)</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 中央カラム: インベントリとAI -->
+        <section class="md:col-span-2 flex flex-col gap-4 overflow-hidden h-full">
+            <!-- 共有インベントリ -->
+            <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-inner p-4 overflow-hidden">
+                <h2 class="text-lg font-semibold text-center border-b border-gray-700 pb-2 mb-2">共有インベントリ (無限)</h2>
+                <div id="inventory-list" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pr-2">
+                    <!-- JSで動的に挿入 -->
+                </div>
+            </div>
+            <!-- AI管理 -->
+            <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-inner p-4 overflow-hidden">
+                <h2 class="text-lg font-semibold text-center border-b border-gray-700 pb-2 mb-2">AI管理</h2>
+                <div id="ai-list" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- JSで動的に挿入 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 右カラム: ログとレシピ -->
+        <section class="md:col-span-1 flex flex-col gap-4 overflow-hidden h-full">
+            <!-- 発見済みレシピ -->
+            <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-inner p-4 overflow-hidden">
+                <h2 class="text-lg font-semibold text-center border-b border-gray-700 pb-2 mb-2">発見済み行動レシピ</h2>
+                <!-- ★変更: 説明文追加 -->
+                <p class="text-xs text-center text-gray-400 mb-2">（クラフト/探索レシピはクリックで直接実行できます）</p>
+                <div id="recipe-list" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- JSで動的に挿入 -->
+                </div>
+            </div>
+            <!-- ゲームログ -->
+            <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-inner p-4 overflow-hidden">
+                <h2 class="text-lg font-semibold text-center border-b border-gray-700 pb-2 mb-2">ゲームログ</h2>
+                <div id="game-log" class="flex-1 overflow-y-auto space-y-1.5 text-sm pr-2">
+                    <!-- JSで動的に挿入 -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- メッセージモーダル -->
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-11/12 md:w-1/3">
+            <h3 id="modal-title" class="text-lg font-bold text-red-400 mb-4">エラー</h3>
+            <p id="modal-message" class="text-gray-200 mb-6">ここにメッセージが入ります。</p>
+            <button id="modal-close-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">
+                閉じる
+            </button>
+        </div>
+    </div>
+
+    <!-- メインのゲームロジック -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
