@@ -13,37 +13,86 @@ export function renderAll() {
 }
 
 function renderInventory() {
-    DOMElements.inventoryList.innerHTML = "";
     const inventory = getInventory();
+    const inventoryList = DOMElements.inventoryList;
+
+    // 既存のDOM要素をMapに格納 (data-item属性をキー)
+    const existingItemEls = new Map();
+    inventoryList.querySelectorAll('[data-item]').forEach(el => {
+        existingItemEls.set(el.dataset.item, el);
+    });
+
+    // インベントリが空の場合の処理
+    const placeholder = inventoryList.querySelector('.placeholder');
     if (inventory.size === 0) {
-        DOMElements.inventoryList.innerHTML = `<span class="text-gray-500 col-span-full text-center p-4">インベントリは空です...</span>`;
+        if (!placeholder) {
+            inventoryList.innerHTML = `<span class="text-gray-500 col-span-full text-center p-4 placeholder">インベントリは空です...</span>`;
+        }
+        // 既存のアイテム要素が残っていれば削除
+        existingItemEls.forEach(el => el.remove());
         return;
+    } else {
+        placeholder?.remove();
     }
+
     const sortedInventory = [...inventory.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    
+
+    // 新しい状態に基づいてDOMを更新・追加
     for (const [item, amount] of sortedInventory) {
-        const itemEl = document.createElement('div');
-        itemEl.className = "bg-gray-700 rounded-md p-2 shadow text-center";
-        itemEl.innerHTML = `
-            <span class="font-medium text-white">${item}</span>
-            <span class="block text-sm text-gray-300">x ${amount}</span>
-        `;
-        DOMElements.inventoryList.appendChild(itemEl);
+        const existingEl = existingItemEls.get(item);
+
+        if (existingEl) {
+            // 存在する場合: 数量を更新
+            const amountEl = existingEl.querySelector('.item-amount');
+            const currentAmount = parseInt(amountEl.textContent.replace('x ', ''), 10);
+            if (currentAmount !== amount) {
+                amountEl.textContent = `x ${amount}`;
+            }
+            // 処理済みの要素をMapから削除
+            existingItemEls.delete(item);
+        } else {
+            // 存在しない場合: 新しく作成して追加
+            const itemEl = document.createElement('div');
+            itemEl.className = "bg-gray-700 rounded-md p-2 shadow text-center";
+            itemEl.dataset.item = item; // 差分更新のための識別子
+            itemEl.innerHTML = `
+                <span class="font-medium text-white">${item}</span>
+                <span class="block text-sm text-gray-300 item-amount">x ${amount}</span>
+            `;
+            inventoryList.appendChild(itemEl);
+        }
     }
+
+    // Mapに残った要素はインベントリから削除されたものなので、DOMから削除
+    existingItemEls.forEach(el => el.remove());
 }
 
 function renderAIs() {
-    DOMElements.aiList.innerHTML = "";
     const ais = getAis();
     const recipes = getRecipes();
+    const aiList = DOMElements.aiList;
+
+    const existingAiEls = new Map();
+    aiList.querySelectorAll('[data-ai-id]').forEach(el => {
+        existingAiEls.set(el.dataset.aiId, el);
+    });
+
+    const placeholder = aiList.querySelector('.placeholder');
     if (ais.size === 0) {
-        DOMElements.aiList.innerHTML = `<span class="text-gray-500 text-center p-4">AIはまだいません...</span>`;
+        if (!placeholder) {
+            aiList.innerHTML = `<span class="text-gray-500 text-center p-4 placeholder">AIはまだいません...</span>`;
+        }
+        existingAiEls.forEach(el => el.remove());
         return;
+    } else {
+        placeholder?.remove();
     }
-    [...ais.values()].sort((a, b) => a.id.localeCompare(b.id)).forEach(ai => {
-        const aiEl = document.createElement('div');
-        aiEl.className = "bg-gray-700 rounded-md p-3 shadow";
-        
+
+    const sortedAis = [...ais.values()].sort((a, b) => a.id.localeCompare(b.id));
+
+    for (const ai of sortedAis) {
+        const existingEl = existingAiEls.get(ai.id);
+
         let recipeName = "待機中";
         let persistentText = "";
         if (ai.assignedRecipeId) {
@@ -53,48 +102,89 @@ function renderAIs() {
                 persistentText = `<span class="text-xs font-mono text-purple-300">[永続]</span>`;
             }
         }
-        
-        aiEl.innerHTML = `
+        const newInnerHtml = `
             <div class="flex justify-between items-center">
                 <span class="font-bold text-lg text-white">${ai.name} <span class="text-sm font-mono text-gray-400">(${ai.id})</span></span>
                 ${persistentText}
             </div>
             <div class="text-sm text-gray-300">${recipeName}</div>
         `;
-        DOMElements.aiList.appendChild(aiEl);
-    });
+
+        if (existingEl) {
+            // 存在する場合: 内容が変更されていれば更新
+            if (existingEl.innerHTML.trim() !== newInnerHtml.trim()) {
+                existingEl.innerHTML = newInnerHtml;
+            }
+            existingAiEls.delete(ai.id);
+        } else {
+            // 存在しない場合: 新しく作成して追加
+            const aiEl = document.createElement('div');
+            aiEl.className = "bg-gray-700 rounded-md p-3 shadow";
+            aiEl.dataset.aiId = ai.id;
+            aiEl.innerHTML = newInnerHtml;
+            aiList.appendChild(aiEl);
+        }
+    }
+
+    existingAiEls.forEach(el => el.remove());
 }
 
 function renderRecipes() {
-    DOMElements.recipeList.innerHTML = "";
     const recipes = getRecipes();
-    if (recipes.size === 0) {
-        DOMElements.recipeList.innerHTML = `<span class="text-gray-500 text-center p-4">発見済みのレシピはありません...</span>`;
-        return;
-    }
-    [...recipes.values()].sort((a, b) => a.id.localeCompare(b.id)).forEach(recipe => {
-        const recipeEl = document.createElement('div');
-        
-        let icon = "💡";
-        let color = "text-white";
-        let cursorStyle = "";
+    const recipeList = DOMElements.recipeList;
 
-        if(recipe.type === 'craft') { icon = "🔧"; color = "text-blue-300"; cursorStyle = "cursor-pointer hover:bg-gray-600"; }
-        if(recipe.type === 'explore') { icon = "🌲"; color = "text-green-300"; cursorStyle = "cursor-pointer hover:bg-gray-600"; }
-        if(recipe.type === 'command') { icon = "🤖"; color = "text-purple-300"; cursorStyle = "cursor-not-allowed"; }
-
-        recipeEl.className = `bg-gray-700 rounded-md p-2 shadow text-sm ${cursorStyle} transition-colors duration-150`;
-        recipeEl.innerHTML = `
-            <div class="font-semibold ${color}">${icon} ${recipe.name} <span class="font-mono text-xs text-gray-400">(${recipe.id})</span></div>
-            <div class="text-xs text-gray-300 pl-5">${recipe.description}</div>
-        `;
-
-        if (recipe.type === 'craft' || recipe.type === 'explore') {
-            recipeEl.addEventListener('click', () => handlePlayerExecuteRecipe(recipe));
-        }
-
-        DOMElements.recipeList.appendChild(recipeEl);
+    const existingRecipeEls = new Map();
+    recipeList.querySelectorAll('[data-recipe-id]').forEach(el => {
+        existingRecipeEls.set(el.dataset.recipeId, el);
     });
+
+    const placeholder = recipeList.querySelector('.placeholder');
+    if (recipes.size === 0) {
+        if (!placeholder) {
+            recipeList.innerHTML = `<span class="text-gray-500 text-center p-4 placeholder">発見済みのレシピはありません...</span>`;
+        }
+        existingRecipeEls.forEach(el => el.remove());
+        return;
+    } else {
+        placeholder?.remove();
+    }
+
+    const sortedRecipes = [...recipes.values()].sort((a, b) => a.id.localeCompare(b.id));
+
+    for (const recipe of sortedRecipes) {
+        const existingEl = existingRecipeEls.get(recipe.id);
+
+        if (existingEl) {
+            // レシピは不変なので、更新は不要。Mapから削除するだけ。
+            existingRecipeEls.delete(recipe.id);
+        } else {
+            // 存在しない場合: 新しく作成して追加
+            const recipeEl = document.createElement('div');
+            recipeEl.dataset.recipeId = recipe.id;
+
+            let icon = "💡";
+            let color = "text-white";
+            let cursorStyle = "";
+
+            if(recipe.type === 'craft') { icon = "🔧"; color = "text-blue-300"; cursorStyle = "cursor-pointer hover:bg-gray-600"; }
+            if(recipe.type === 'explore') { icon = "🌲"; color = "text-green-300"; cursorStyle = "cursor-pointer hover:bg-gray-600"; }
+            if(recipe.type === 'command') { icon = "🤖"; color = "text-purple-300"; cursorStyle = "cursor-not-allowed"; }
+
+            recipeEl.className = `bg-gray-700 rounded-md p-2 shadow text-sm ${cursorStyle} transition-colors duration-150`;
+            recipeEl.innerHTML = `
+                <div class="font-semibold ${color}">${icon} ${recipe.name} <span class="font-mono text-xs text-gray-400">(${recipe.id})</span></div>
+                <div class="text-xs text-gray-300 pl-5">${recipe.description}</div>
+            `;
+
+            if (recipe.type === 'craft' || recipe.type === 'explore') {
+                recipeEl.addEventListener('click', () => handlePlayerExecuteRecipe(recipe));
+            }
+
+            recipeList.appendChild(recipeEl);
+        }
+    }
+
+    existingRecipeEls.forEach(el => el.remove());
 }
 
 export function addLog(message, type = "normal") {
