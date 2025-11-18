@@ -57,11 +57,11 @@ app.post('/api/gemini', apiLimiter, async (req, res) => {
     
     res.json({ message: text }); // textはJSON文字列になっているはず
   } catch (error) {
-    // エラーログをより詳細に出力
+    // サーバー側にはエラーの詳細をログ出力
     console.error('Gemini API Error in /api/gemini endpoint:', error);
+    // クライアントには一般的なエラーメッセージを返す
     res.status(500).json({ 
-        error: 'Gemini APIとの通信中にエラーが発生しました。',
-        details: error.message 
+        error: 'サーバー内部エラーが発生しました。'
     });
   }
 });
