@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const port = 3000;
@@ -18,7 +19,17 @@ const genAI = new GoogleGenerativeAI(apiKey);
 app.use(express.json());
 app.use(express.static('public')); // Serve static files from the 'public' directory
 
-app.post('/api/gemini', async (req, res) => {
+// レートリミッターの設定
+const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: { error: 'リクエストが多すぎます。15分後に再試行してください。' },
+});
+
+// APIルートにリミッターを適用
+app.post('/api/gemini', apiLimiter, async (req, res) => {
   try {
     const { systemInstruction, userQuery, schema } = req.body;
 
