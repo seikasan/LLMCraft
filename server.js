@@ -30,7 +30,7 @@ app.post('/api/gemini', async (req, res) => {
     const fullPrompt = `${systemInstruction}\n\nUser Query: "${userQuery}"\n\nYour response MUST be a single, valid JSON object that conforms to the following schema. Do not output any text, explanation, or code block markers outside of the JSON object.\n\nSchema:\n${JSON.stringify(schema, null, 2)}`;
 
     // より新しいモデルを使用し、JSONモードを指定
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL_NAME || "gemini-2.5-flash" });
     
     const generationConfig = {
         responseMimeType: "application/json",
